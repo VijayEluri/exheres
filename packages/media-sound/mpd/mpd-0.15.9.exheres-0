@@ -1,0 +1,112 @@
+# Copyright 2008 Richard Brown
+# Copyright 2009 Bo Ørsted Andresen
+# Copyright 2009 Thomas Anderson
+# Distributed under the terms of the GNU General Public License v2
+
+SUMMARY="Allows remote access for playing music"
+DESCRIPTION="
+A daemon for playing music of various formats.  Music is played through the
+server's audio device.  The daemon stores info about all available music,
+and this info can be easily searched and retrieved.  Player control, info
+retrieval, and playlist management can all be managed remotely.
+"
+HOMEPAGE="http://www.musicpd.org/"
+DOWNLOADS="mirror://sourceforge/musicpd/${PNV}.tar.bz2"
+
+LICENCES="GPL-2"
+SLOT="0"
+PLATFORMS="~amd64 ~x86"
+MYOPTIONS="aac audiofile curl doc ffmpeg flac id3 ipv6 libsamplerate pulseaudio ogg shout sqlite
+    audiofile [[ description = [ Enable audiofile support, enables wave support ] ]]
+    curl      [[ description = [ Support obtaining song data via HTTP ] ]]
+    ffmpeg    [[ description = [ Enable the ffmpeg input plugin, allowing you to play all audio formats supported by ffmpeg ] ]]
+    id3       [[ description = [ Support for ID3 tags ] ]]
+    jack      [[ description = [ Enable jack-audio-connection-kit audio output ] ]]
+    shout     [[ description = [ Enable support for streaming through shout (mp3, and ogg if ogg is enabled) ] ]]
+    sqlite    [[ description = [ Enable support for storing the MPD database in an Sqlite database ] ]]
+    ( flac shout ) [[ requires = ogg ]]
+"
+
+UPSTREAM_RELEASE_NOTES="http://sourceforge.net/projects/musicpd/files/${PN}/${PV}/${PNV}-release-notes.txt/download"
+
+DEPENDENCIES="
+    build:
+        doc? (
+            app-text/docbook-xml-dtd:4.2
+            app-text/xmlto
+            app-doc/doxygen
+        )
+        dev-util/pkg-config
+    build+run:
+        dev-libs/glib:2[>=2.4]
+        media-libs/libmad
+        sys-sound/alsa-lib
+        aac? ( media-libs/faad2 )
+        audiofile? ( media-libs/audiofile[>=0.1.7] )
+        curl? ( net-misc/curl )
+        flac? ( media-libs/flac[>=1.1][ogg?] )
+        ffmpeg? ( media/ffmpeg )
+        id3? ( media-libs/libid3tag )
+        jack? ( media-sound/jack-audio-connection-kit )
+        libsamplerate? ( media-libs/libsamplerate[>=0.0.15] )
+        ogg? (
+            media-libs/libogg
+            media-libs/libvorbis
+        )
+        pulseaudio? ( media-sound/pulseaudio )
+        shout? ( media-libs/libshout
+                 media-sound/lame )
+        sqlite? ( dev-db/sqlite:3 )
+"
+
+## For prereleases(alphas, betas) only.
+WORK="${WORKBASE}/${PNV/_/~}"
+
+src_configure() {
+    # mod requires mikmod
+    # mp4 support requires aac, and faad[mp4ff/mpeg4ip]
+    # mpc is musepack (MPC) support
+    # mvp is Hauppauge Media MVP
+    # wavpack requires wavpack
+    # zeroconf requires avahi
+    econf \
+        --enable-alsa \
+        --enable-bzip2 \
+        --enable-mad \
+        --disable-ao \
+        --disable-lsr \
+        --disable-mikmod \
+        --disable-mpc \
+        --disable-mvp \
+        --disable-oss \
+        --disable-wavpack \
+        --without-zeroconf \
+        $(option_enable aac) \
+        $(option_enable audiofile) \
+        $(option_enable curl) \
+        $(option_enable doc documentation) \
+        $(option_enable ffmpeg) \
+        $(option_enable flac) \
+        $(option_enable flac libOggFLACtest) \
+        $(option_enable flac oggflac) \
+        $(option_enable id3) \
+        $(option_enable ipv6) \
+        $(option_enable jack) \
+        $(option_enable libsamplerate lsr) \
+        $(option_enable ogg vorbis) \
+        $(option_enable pulseaudio pulse) \
+        $(option_enable shout) \
+        $(option_enable shout lame-encoder) \
+        $(option_enable shout vorbis-encoder) \
+        $(option_enable sqlite)
+}
+
+src_install() {
+    default
+
+    rm "${IMAGE}"/usr/share/doc/${PNV}/COPYING || die "Couldn't remove COPYING"
+
+    if option doc; then
+        rm -rf "${IMAGE}"/usr/share/doc/${PNV}/{protocol,user} || die "Removing directories failed"
+    fi
+}
