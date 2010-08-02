@@ -3,7 +3,7 @@
 
 require zathura
 
-DOWNLOADS="${HOMEPAGE}download/${PNV}.tar.gz"
+DOWNLOADS="${HOMEPAGE}attachments/download/10/${PNV}.tar.gz"
 
 PLATFORMS="~amd64"
 
