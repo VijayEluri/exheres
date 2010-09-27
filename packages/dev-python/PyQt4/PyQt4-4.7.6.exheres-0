@@ -1,0 +1,19 @@
+# Copyright 2008 Wulf C. Krueger <philantrop@exherbo.org>
+# Copyright 2009, 2010 Ingmar Vanhassel <ingmar@exherbo.org>
+# Distributed under the terms of the GNU General Public License v2
+# Based in part upon 'PyQt4-4.4.4-r1.ebuild' from Gentoo, which is:
+#     Copyright 1999-2008 Gentoo Foundation
+
+require PyQt4 [ sip_version=4.11 ]
+
+PLATFORMS="~amd64 ~x86"
+
+MYOPTIONS="multimedia [[ description = [ Build QtMultimedia bindings ] ]]"
+
+DEPENDENCIES="
+    build+run:
+        x11-libs/qt:4[multimedia(-)?]
+"
+
+PYQT_CONFIGURE_OPTION_ENABLES+=( Multimedia )
+

@@ -1,0 +1,111 @@
+# Copyright 2008 Wulf C. Krueger <philantrop@exherbo.org>
+# Copyright 2009, 2010 Ingmar Vanhassel <ingmar@exherbo.org>
+# Distributed under the terms of the GNU General Public License v2
+# Based in part upon 'PyQt4-4.4.4-r1.ebuild' from Gentoo, which is:
+#     Copyright 1999-2008 Gentoo Foundation
+
+myexparam sip_version
+
+require multilib python [ python_dep=2.5 ]
+
+MY_PNV="PyQt-x11-gpl-${PV}"
+
+SUMMARY="PyQt4 is a set of Python bindings for the Qt4 toolkit"
+DESCRIPTION="
+PyQt is a set of Python bindings for Nokia's Qt application framework and runs
+on all platforms supported by Qt including Windows, MacOS/X and Linux. There are
+two sets of bindings: PyQt v4 supports Qt v4; and the older PyQt v3 supports Qt v3
+and earlier. The bindings are implemented as a set of Python modules and contain
+over 300 classes and over 6,000 functions and methods.
+"
+HOMEPAGE="http://www.riverbankcomputing.co.uk/software/pyqt/intro/"
+DOWNLOADS="http://www.riverbankcomputing.co.uk/static/Downloads/${PN}/${MY_PNV}.tar.gz"
+
+BUGS_TO="philantrop@exherbo.org"
+REMOTE_IDS="pypi:${PN} freshmeat:pyqt"
+
+UPSTREAM_CHANGELOG="http://www.riverbankcomputing.co.uk/static/Downloads/${PN}/ChangeLog"
+UPSTREAM_RELEASE_NOTES="http://www.riverbankcomputing.co.uk/news/pyqt-$(ever major)$(ever range 2)"
+UPSTREAM_DOCUMENTATION="
+    http://www.riverbankcomputing.co.uk/static/Docs/${PN}/pyqt4ref.html [[ lang = en ]]
+    http://www.riverbankcomputing.co.uk/static/Docs/${PN}/html/classes.html [[ lang = en ]]
+"
+
+SLOT="0"
+LICENCES="|| ( GPL-2 GPL-3 )"
+MYOPTIONS="dbus debug doc examples opengl sql webkit"
+
+DEPENDENCIES="
+    build+run:
+        dev-python/sip[~>$(exparam sip_version)]
+        x11-libs/qt:4[>=4.5][X][dbus?][opengl?][qt3support][sql?][webkit?]
+        dbus? ( dev-python/dbus-python )
+"
+
+DEFAULT_SRC_INSTALL_PARAMS=( INSTALL_ROOT="${IMAGE}" )
+
+WORK="${WORKBASE}"/${MY_PNV}
+
+pyqt_enable() {
+    local flag=${1,,} module=${2:-Qt${1}}
+
+    if option "${flag}" ; then
+        echo "--enable=${module}"
+    fi
+}
+
+# We don't install Phonon bindings
+PYQT_CONFIGURE_OPTION_ENABLES=( "dbus DBus" OpenGL Sql WebKit )
+PYQT_CONFIGURE_ALWAYS_ENABLES=( QtAssistant QtCore QtGui QtHelp QtNetwork QtScript QtScriptTools QtSvg QtTest QtXml
+    QtXmlPatterns pyqtconfig )
+PYQT_CONFIGURE_PARAMS=(
+        # Disable PyQt API file for QScintilla
+        --no-qsci-api
+        # Disable QtDesigner support. Enable with: --enable=QtDesigner --enable=uic
+        --no-designer-plugin )
+
+src_prepare() {
+    default
+
+    if option !dbus; then
+        edo sed -e '/pkg-config.*dbus-1/s/sout.*$/return # DBus support disabled/' -i configure.py
+    fi
+
+    # When system python is set to 2.6 python_bytecompile() can't process
+    # source files that use python 3 syntax. See Gentoo bug #274499.
+    [[ $(python_get_abi) == 2.* ]] && rm -rf pyuic/uic/port_v3
+}
+
+src_configure() {
+    edo python configure.py \
+        $(option debug && echo '--debug') \
+        --confirm-license \
+        --bindir /usr/bin \
+        --destdir $(python_get_sitedir) \
+        --sipdir /usr/share/sip \
+        "${PYQT_CONFIGURE_PARAMS[@]}" \
+        $(for s in ${PYQT_CONFIGURE_ALWAYS_ENABLES[@]} ; do echo "--enable=${s}" ; done) \
+        $(for s in ${PYQT_CONFIGURE_OPTION_ENABLES[@]} ; do pyqt_enable ${s} ; done)
+
+    find "${WORK}" -name Makefile | xargs sed -i "/^\tstrip /d"
+}
+
+src_install() {
+    default
+    python_bytecompile
+
+    if option doc ; then
+        dodoc doc/{pyqt4ref.html,pyqt4ref.txt}
+        insinto /usr/share/doc/${PNVR}/html
+        doins -r doc/html/*
+    fi
+
+    if option examples ; then
+        insinto /usr/share/doc/${PNVR}
+        doins -r examples
+    fi
+
+    # Kill empty dirs.
+    find "${IMAGE}"/usr/ -type d -empty -delete || die "Removing empty dirs failed"
+}
+
