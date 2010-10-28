@@ -1,0 +1,11 @@
+diff -NurwBd -NurwBd coreutils-8.6.orig/tests/cp/reflink-perm coreutils-8.6/tests/cp/reflink-perm
+--- coreutils-8.6.orig/tests/cp/reflink-perm	2010-10-11 17:35:11.000000000 +0000
++++ coreutils-8.6/tests/cp/reflink-perm	2010-10-28 18:04:46.443000018 +0000
+@@ -23,6 +23,7 @@
+ 
+ . $srcdir/test-lib.sh
+ 
++skip_test_ 'This test fails under btrfs'
+ 
+ : > time_check
+ : > file

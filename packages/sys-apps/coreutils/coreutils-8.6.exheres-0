@@ -14,5 +14,6 @@ DEFAULT_SRC_PREPARE_PATCHES=(
     "${FILES}"/${PNV}-sydbox.patch
     "${FILES}"/0001-Disable-a-test-that-hangs-with-sydbox.patch
     "${FILES}"/coreutils-btrfs-ls-time.patch
+    "${FILES}"/coreutils-btrfs-reflink-perm.patch
 )
 
