@@ -1,0 +1,103 @@
+# Copyright 2007-2008 Bryan Østergaard <kloeri@exherbo.org>
+# Copyright 2008, 2009, 2010 Ingmar Vanhassel <ingmar@exherbo.org>
+# Distributed under the terms of the GNU General Public License v2
+
+myexparam source_uri="mirror://gnu/${PN}/${PNV}.tar.bz2"
+myexparam ports_uri="mirror://gnu/${PN}/${PN}-ports-${PV}.tar.bz2"
+myexparam libidn_uri="mirror://gnu/${PN}/${PN}-libidn-${PV}.tar.bz2"
+
+require flag-o-matic multilib
+
+SUMMARY="GNU C library"
+HOMEPAGE="http://www.gnu.org/software/libc"
+
+exparam -v source_uri source_uri
+exparam -v ports_uri ports_uri
+exparam -v libidn_uri libidn_uri
+
+DOWNLOADS="${source_uri} ${ports_uri} ${libidn_uri}"
+
+LICENCES="|| ( GPL-3 GPL-2 ) || ( LGPL-3 LGPL-2.1 )"
+SLOT="0"
+MYOPTIONS=""
+
+DEPENDENCIES="
+    build:
+        dev-lang/perl:*
+        sys-apps/gawk
+        sys-apps/sed
+        sys-apps/texinfo
+        sys-kernel/linux-headers
+    run:
+        sys-libs/timezone-data"
+
+ECONF_SOURCE="${WORKBASE}"/${PNV}
+WORK="${TEMP}/build"
+
+DEFAULT_SRC_CONFIGURE_PARAMS=(
+    --with-add-ons
+    --with-crypt
+    --with-headers=/usr/include
+    --without-gd
+    --enable-kernel=2.6.22
+)
+DEFAULT_SRC_INSTALL_PARAMS=( install_root="${IMAGE}" )
+
+pkg_setup() {
+    # glibc doesn't compile with -Os. See bug:
+    # http://sourceware.org/bugzilla/show_bug.cgi?id=5203 for details
+    replace-flags -Os -O2
+}
+
+src_unpack() {
+    edo mkdir "${WORK}"
+    unpack ${ARCHIVES}
+
+    if [[ ${PV/_p*} != ${PV} ]] ; then
+        edo mv glibc-${PV/_p*}-2* glibc-${PV}
+        edo mv ${PNV%%_p*}-ports-${PV##*_p} glibc-ports-${PV}
+    fi
+
+    if [[ -n ${libidn_uri} ]] ; then
+        edo mv ${PN}-libidn-${PV} "${WORKBASE}"/${PNV}/libidn
+    fi
+
+    if [[ -n ${ports_uri} ]] ; then
+        edo mv ${PN}-ports-${PV} "${WORKBASE}"/${PNV}/ports
+    fi
+}
+
+src_install() {
+    export LANGUAGE=C LC_ALL=C
+    default
+
+    # localedef fails if /usr/lib/locale does not exist
+    keepdir /usr/$(get_libdir)/locale
+
+    # Don't install /etc/{ld.so.cache,localtime}
+    for file in "${IMAGE}/etc/ld.so.cache" "${IMAGE}/etc/localtime" ; do
+        if [[ -f ${file} ]] ; then
+            edo rm "${file}"
+        fi
+    done
+    # Don't install bundled timezone info
+    edo rm -r "${IMAGE}/usr/share/zoneinfo"
+
+    cd "${WORKBASE}/${PNV}"
+    insinto /etc
+    doins nscd/nscd.conf nss/nsswitch.conf posix/gai.conf
+
+    hereenvd 02locale <<EOF
+LANG=en_GB.utf8
+EOF
+}
+
+pkg_postinst() {
+    mkdir -p "${ROOT}usr/$(get_libdir)/locale" || eerror "failed to create /usr/$(get_libdir)/locale"
+
+    for lang in en_US en_GB ; do
+        I18NPATH="${ROOT}usr/share/i18n" \
+            nonfatal edo "${ROOT}usr/bin/localedef" --prefix="${ROOT}" -i ${lang} -f UTF-8 ${lang}.UTF-8
+    done
+}
+
