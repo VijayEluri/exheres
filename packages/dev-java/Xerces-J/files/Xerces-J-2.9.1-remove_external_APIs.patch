@@ -1,0 +1,43 @@
+Upstream: Wants it as it is.
+Source: philantrop@exherbo.org
+Reason: We want to use the system-wide installation of those APIs instead of
+building them together with Xerces-J again.
+
+diff -Naur xerces-2_9_1.orig/build.xml xerces-2_9_1/build.xml
+--- xerces-2_9_1.orig/build.xml	2007-09-15 00:27:06.000000000 +0200
++++ xerces-2_9_1/build.xml	2008-11-17 17:42:05.000000000 +0100
+@@ -214,7 +214,7 @@
+         </fileset>
+     </copy>
+ 
+-    <!-- now deal with API's:  -->
++    <!-- now deal with API's:
+     <unzip src="${src.apis.zip}" dest="${build.src}">
+         <patternset
+             includes="org/xml/sax/** 
+@@ -235,7 +235,7 @@
+         	    org/w3c/dom/xpath/**"
+         />
+     </unzip>
+-    
++    -->
+     <!-- substitute tokens as needed -->
+     <replace file="${build.dir}/src/org/apache/xerces/impl/Version.java" 
+              token="@@VERSION@@" value="${parser.Name} ${parser.Version}"/>
+@@ -466,16 +466,6 @@
+       additionalparam='${additional.param}'
+       />
+     <mkdir dir='${build.dir}/docs/javadocs/other'/>
+-    <javadoc packagenames='org.apache.html.*,
+-                           org.apache.wml.*,
+-                           org.apache.xml.serialize.*'
+-      locale='en_US'
+-      sourcepath='${build.src}' destdir='${build.dir}/docs/javadocs/other'
+-      author='true' version='true'
+-      windowtitle='Other Classes' doctitle='Other Classes'
+-      bottom='${copyright}'
+-      additionalparam='${additional.param}'
+-      />
+   </target>
+ 
+   <!-- =================================================================== -->

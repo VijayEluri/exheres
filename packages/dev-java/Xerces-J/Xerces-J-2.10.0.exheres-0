@@ -1,0 +1,83 @@
+# Copyright 2009, 2010 Wulf C. Krueger <philantrop@exherbo.org>
+# Distributed under the terms of the GNU General Public License v2
+
+require ant java
+
+S_PN="xerces"
+MY_PV=$(ever replace_all _ )
+
+SUMMARY="A fully conforming XML Schema processor"
+DESCRIPTION="
+Xerces2 is the next generation Apache Xerces-J XML parser. This version of
+Xerces-J defines the Xerces Native Interface (XNI), and provides a complete,
+standards compliant reference implementation using XNI.
+"
+HOMEPAGE="http://${S_PN}.apache.org/${S_PN}2-j/"
+DOWNLOADS="
+    http://dev.exherbo.org/~philantrop/distfiles/${PN}-src.${PV}.tar.gz
+    http://dev.exherbo.org/~philantrop/distfiles/XJavac.java"
+#mirror://apache/dist/${S_PN}/j/${PN}-src.${PV}.tar.gz
+BUGS_TO="philantrop@exherbo.org"
+REMOTE_IDS="freshmeat:${S_PN}2"
+
+UPSTREAM_DOCUMENTATION="http://${S_PN}.apache.org/${S_PN}2-j/xni.html [[ lang = en ]]"
+UPSTREAM_RELEASE_NOTES="http://${S_PN}.apache.org/${S_PN}2-j/releases.html"
+
+LICENCES="Apache-2.0"
+SLOT="0"
+PLATFORMS="~amd64 ~x86"
+MYOPTIONS=""
+RESTRICT="test"
+
+DEPENDENCIES="
+    build+run:
+        dev-java/jakarta-regexp[>=1.5]
+        dev-java/xml-commons-external[>=1.3.4]
+        dev-java/xml-commons-resolver[>=1.2]
+        dev-java/java_cup[>=0.11]
+"
+
+DEFAULT_SRC_PREPARE_PATCHES=( "${FILES}/${PNV}-remove_external_APIs.patch" )
+ANT_SRC_COMPILE_PARAMS=( compile )
+ANT_SRC_TEST_PARAMS=( tests )
+ANT_SRC_INSTALL_PARAMS=( jar jar-schema11 )
+
+WORK="${WORKBASE}/${S_PN}-${MY_PV}"
+
+src_prepare() {
+    default
+
+    edo mkdir -p "${WORK}"/tools
+    edo mkdir -p "${WORK}"/build/src/org/w3c/dom
+    edo cp /usr/share/jakarta-regexp/jakarta-regexp-1.5.jar "${WORK}"/tools
+    edo cp /usr/share/java_cup/java-cup-11a.jar "${WORK}"/tools
+    edo cp /usr/share/xml-commons-external/xml-apis.jar "${WORK}"/tools
+    edo cp /usr/share/xml-commons-external/xml-apis-ext.jar "${WORK}"/tools
+    edo cp /usr/share/xml-commons-resolver/resolver.jar "${WORK}"/tools
+    edo cp "${FILES}"/ElementTraversal.java "${WORK}"/build/src/org/w3c/dom
+
+    edo sed -i -e 's:\(depends="jar\), javadoc":\1":' build.xml
+
+    edo mkdir "${WORK}"/xjavac
+    edo cp "${FETCHEDDIR}"/XJavac.java "${WORK}"/xjavac
+    edo cp "${FILES}"/xjavac-build.xml "${WORK}"/xjavac
+    edo mkdir -p "${WORK}"/tools/bin
+}
+
+src_compile() {
+    edo pushd "${WORK}"/xjavac >/dev/null
+    ant_src_compile -f xjavac-build.xml jar
+    edo popd >/dev/null
+    edo cp "${WORK}"/xjavac/dist/xjavac.jar "${WORK}"/tools/bin
+    ant_src_compile
+}
+
+src_install() {
+    ant_src_install
+
+    dodir /usr/share/${PN}
+    insinto /usr/share/${PN}
+    doins "${WORK}"/build/xercesImpl.jar
+    doins "${WORK}"/build/schema11-xercesImpl.jar
+}
+

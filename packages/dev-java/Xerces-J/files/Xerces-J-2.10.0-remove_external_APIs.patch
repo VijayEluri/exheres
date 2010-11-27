@@ -1,0 +1,53 @@
+From 527f3866f7722150ee3922a4c5e81cb3b92853f1 Mon Sep 17 00:00:00 2001
+From: Wulf C. Krueger <philantrop@exherbo.org>
+Date: Sat, 19 Jun 2010 16:27:00 +0200
+Subject: [PATCH] Use system-wide installation of those APIs.
+
+We want to use the system-wide installation of those APIs instead of
+building them together with Xerces-J again.
+
+Upstream: Wants it as it is.
+---
+ build.xml |    5 ++++-
+ 1 files changed, 4 insertions(+), 1 deletions(-)
+
+diff --git a/build.xml b/build.xml
+index 476a41f..9761913 100644
+--- a/build.xml
++++ b/build.xml
+@@ -247,6 +247,7 @@ Authors:
+       tofile="${build.src}/org/apache/xerces/impl/xpath/regex/message_en.properties"/>
+ 
+     <!-- now deal with API's:  -->
++<!--
+     <unzip src="${src.apis.zip}" dest="${build.src}">
+         <patternset
+             includes="org/xml/sax/** 
+@@ -269,7 +270,7 @@ Authors:
+                 org/w3c/dom/xpath/**"
+         />
+     </unzip>
+-    
++-->    
+     <!-- substitute tokens as needed -->
+     <replace file="${build.dir}/src/org/apache/xerces/impl/Version.java" 
+              token="@@VERSION@@" value="${parser.Name} ${parser.Version}"/>
+@@ -508,6 +509,7 @@ Authors:
+       bottom='${copyright}'
+       additionalparam='${additional.param}'
+       />
++<!--
+     <mkdir dir='${build.dir}/docs/javadocs/other'/>
+     <javadoc packagenames='org.apache.html.*,
+                            org.apache.wml.*,
+@@ -519,6 +521,7 @@ Authors:
+       bottom='${copyright}'
+       additionalparam='${additional.param}'
+       />
++-->
+   </target>
+ 
+   <!-- =================================================================== -->
+-- 
+1.7.1
+
