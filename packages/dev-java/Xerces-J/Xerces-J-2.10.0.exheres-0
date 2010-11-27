@@ -37,7 +37,8 @@ DEPENDENCIES="
         dev-java/java_cup[>=0.11]
 "
 
-DEFAULT_SRC_PREPARE_PATCHES=( "${FILES}/${PNV}-remove_external_APIs.patch" )
+DEFAULT_SRC_PREPARE_PATCHES=( "${FILES}/${PNV}-remove_external_APIs.patch"
+                              "${FILES}/${PN}-java-version.patch" )
 ANT_SRC_COMPILE_PARAMS=( compile )
 ANT_SRC_TEST_PARAMS=( tests )
 ANT_SRC_INSTALL_PARAMS=( jar jar-schema11 )

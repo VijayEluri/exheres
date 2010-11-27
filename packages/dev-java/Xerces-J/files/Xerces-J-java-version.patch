@@ -1,0 +1,14 @@
+diff -NurwBd xerces-2_10_0.orig/build.xml xerces-2_10_0/build.xml
+--- xerces-2_10_0.orig/build.xml	2010-06-14 21:59:06.000000000 +0000
++++ xerces-2_10_0/build.xml	2010-11-27 21:26:34.316001866 +0000
+@@ -86,8 +86,8 @@
+     <property name="optimize" value="on"/>
+     <property name="deprecation" value="off"/>
+   	
+-    <property name="javac.source" value="${ant.java.version}"/>
+-    <property name="javac.target" value="${ant.java.version}"/>
++    <property name="javac.source" value="1.5"/>
++    <property name="javac.target" value="1.5"/>
+ 
+     <property name="docs.book" value="${docs.dir}/docs-book.xml"/>
+ 
