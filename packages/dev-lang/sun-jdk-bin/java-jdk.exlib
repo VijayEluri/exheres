@@ -1,0 +1,182 @@
+# Copyright 2009 Sterling X. Winter <replica@exherbo.org>
+# Distributed under the terms of the GNU General Public License v2
+
+# Provides alternatives handling for JDK exhereses. This exlib provides JRE
+# alternatives also, so if you import it DO NOT import java-jre.exlib.
+
+[[ -z ${SLOT} ]] && die "SLOT must be set globally before importing java-jdk.exlib"
+
+require alternatives multilib
+
+# Set use_versioned_java_home according to where the package's main JDK tree
+# (i.e. its JAVA_HOME) is installed to. JDKs importing this exlib should
+# typically install the JDK tree to /usr/lib*/${PN}-${SLOT} and should
+# therefore set use_versioned_java_home=${SLOT}. Likewise, if the tree is
+# installed to /usr/lib*/${PNV} then set use_versioned_java_home=${PV}.
+#
+# If the JDK is installed to an unversioned directory (/usr/lib*/${PN}) then
+# don't set use_versioned_java_home. icedtea6 is one such package; its
+# JAVA_HOME is already implicitly slotted due to the package's name (the 6 in
+# icedtea6 implies SLOT=1.6). Furthermore, its build system expects to find an
+# existing installation of icedtea6 at /usr/lib*/icedtea6 when not
+# bootstrapping with ecj.
+myexparam use_versioned_java_home=
+exparam -v use_versioned_java_home use_versioned_java_home
+
+DEPENDENCIES="
+    build+run:
+        dev-java/java-env
+    post:
+        virtual/jdk:${SLOT}
+        virtual/jre:${SLOT}
+"
+
+_get_java_home() {
+    illegal_in_global_scope
+
+    echo "/usr/$(get_libdir)/${PN}${use_versioned_java_home:+-${use_versioned_java_home}}"
+}
+
+# do_jdk_alternatives
+#
+# Set up java-jdk and java-jre alternatives automatically. Call this only from
+# src_install, preferably at the end, or at least after all binaries and man
+# pages have been installed to ${IMAGE}. Installed binaries are expected to be
+# in ${IMAGE}/${java_home}/{bin,jre/bin} -- DO NOT put standard JDK/JRE
+# binaries in ${IMAGE}/usr/bin because alternatives will handle symlinking
+# there for you. Likewise, installed man pages are expected to be in
+# ${IMAGE}/${java_home}/man/man1, NOT ${IMAGE}/usr/share/man/man1.
+#
+# do_jdk_alternatives is intended to work with JDKs that follow the standard
+# Sun JDK tree. DO NOT call do_jdk_alternatives for JDKs with non-standard
+# directory trees or non-standard naming for binaries and man pages (GCJ is one
+# such deviant). For those you will need to provide custom alternatives
+# mappings and possibly custom symlink trees to mimic a standard JDK layout
+# (see gcj-jdk for an example of both).
+#
+# If linkify_redundant_jdk_bins is called it must be called *before*
+# do_jdk_alternatives.
+do_jdk_alternatives() {
+    illegal_in_global_scope
+    [[ ${EXHERES_PHASE} == install ]] || die "${FUNCNAME} can only be called from src_install"
+
+    # Be careful; this will shadow a ${java_home} in the caller's scope
+    local java_home="$(_get_java_home)"
+
+    local jdk_bins=( ) \
+          jdk_mans=( ) \
+          jre_bins=( ) \
+          jre_mans=( )
+
+    # Collect the installed binaries from ${java_home}/bin
+    for jdk_bin in "${IMAGE}${java_home}"/bin/* ; do
+        [[ ! -d "${jdk_bin}" && -x "${jdk_bin}" ]] &&
+            jdk_bins+=( "${jdk_bin##*/}" )
+    done
+
+    # Collect the installed binaries from ${java_home}/jre/bin
+    for jre_bin in "${IMAGE}${java_home}"/jre/bin/* ; do
+        [[ ! -d "${jre_bin}" && -x "${jre_bin}" ]] &&
+            jre_bins+=( "${jre_bin##*/}" )
+    done
+
+    # For ${jdk_bins}, filter out all binaries common to both ${jdk_bins} and
+    # ${jre_bins} -- we want the java-jre alternatives module to own those
+    for jre_bin in "${jre_bins[@]}" ; do
+        for index in "${!jdk_bins[@]}" ; do
+            [[ "${jdk_bins[$index]}" == "${jre_bin}" ]] && unset jdk_bins[$index]
+        done
+    done
+
+    # Collect the installed man pages from ${java_home}/man/man1. Filter them
+    # so that:
+    #     - ${jdk_mans} only contains man pages for binaries in ${jdk_bins}
+    #     - ${jre_mans} only contains man pages for binaries in ${jre_bins}
+    for manpage in "${IMAGE}${java_home}"/man/man1/* ; do
+        [[ ! "${manpage}" =~ .+\.1$ ]] && continue
+
+        manpage="${manpage##*/}"
+        manpage="${manpage%%.1}"
+
+        if has "${manpage}" "${jre_bins[@]}"; then
+            jre_mans+=( "${manpage}" )
+        elif has "${manpage}" "${jdk_bins[@]}"; then
+            jdk_mans+=( "${manpage}" )
+        fi
+    done
+
+    # Create alternatives mappings for the collected binaries and man pages
+    local jdk_alternatives_map_bin=( ) \
+          jdk_alternatives_map_man=( ) \
+          jre_alternatives_map_bin=( ) \
+          jre_alternatives_map_man=( )
+
+    for jdk_bin in "${jdk_bins[@]}" ; do
+        jdk_alternatives_map_bin+=(
+            "/usr/bin/${jdk_bin}" "${java_home}/bin/${jdk_bin}"
+        )
+    done
+
+    for jdk_man in "${jdk_mans[@]}" ; do
+        jdk_alternatives_map_man+=(
+            "/usr/share/man/man1/${jdk_man}.1" "${java_home}/man/man1/${jdk_man}.1"
+        )
+    done
+
+    for jre_bin in "${jre_bins[@]}" ; do
+        jre_alternatives_map_bin+=(
+            "/usr/bin/${jre_bin}" "${java_home}/jre/bin/${jre_bin}"
+        )
+    done
+
+    for jre_man in "${jre_mans[@]}" ; do
+        jre_alternatives_map_man+=(
+            "/usr/share/man/man1/${jre_man}.1" "${java_home}/man/man1/${jre_man}.1"
+        )
+    done
+
+    # Just for clarity, tie everything together: group the above mappings
+    # according to the alternatives module they belong to
+    local jdk_alternatives=(
+        "/usr/$(get_libdir)/jdk" "${java_home}"
+        "${jdk_alternatives_map_bin[@]}"
+        "${jdk_alternatives_map_man[@]}"
+    )
+
+    local jre_alternatives=(
+        "/usr/$(get_libdir)/jre" "${java_home}/jre"
+        "${jre_alternatives_map_bin[@]}"
+        "${jre_alternatives_map_man[@]}"
+    )
+
+    # Finally, pass the groups to their respective alternatives modules
+    alternatives_for "java-jdk" "${PN}-${SLOT}" "${SLOT}" "${jdk_alternatives[@]}"
+    alternatives_for "java-jre" "${PN}-${SLOT}" "${SLOT}" "${jre_alternatives[@]}"
+}
+
+# linkify_redundant_jdk_bins
+#
+# For each binary in ${IMAGE}/${java_home}/bin that is a copy of a binary in
+# ${IMAGE}/${java_home}/jre/bin replace it with a symlink to the latter to save
+# space. This is suggested by Sun for Linux packaging of the Sun JDK (using the
+# DLJ-licensed bundle) and OpenJDK, so it should be alright for IcedTea6 and
+# other conformant JDKs as well.
+#
+# Call this only from src_install, preferably at the end, or at least after all
+# binaries have been installed to ${IMAGE}. If do_jdk_alternatives is called
+# it must be called *after* linkify_redundant_jdk_bins.
+linkify_redundant_jdk_bins() {
+    illegal_in_global_scope
+    [[ ${EXHERES_PHASE} == install ]] || die "${FUNCNAME} can only be called from src_install"
+
+    pushd "${IMAGE}$(_get_java_home)"/bin > /dev/null
+    for target_path in ../jre/bin/* ; do
+        local binary_name="${target_path##*/}"
+        if [[ -f "${binary_name}" && -x "${binary_name}" && ! -L "${binary_name}" ]] ; then
+            edo rm -f "${binary_name}"
+            dosym "${target_path}" "$(_get_java_home)/bin/${binary_name}"
+        fi
+    done
+    popd > /dev/null
+}
+
