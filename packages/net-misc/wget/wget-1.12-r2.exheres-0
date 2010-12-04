@@ -18,6 +18,8 @@ MYOPTIONS="
 DEPENDENCIES="
     build:
         sys-devel/gettext
+    test:
+        dev-perl/libwww-perl
     build+run:
         dev-libs/openssl
         idn? ( net-dns/libidn )"
