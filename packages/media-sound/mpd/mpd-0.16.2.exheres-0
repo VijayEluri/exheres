@@ -122,4 +122,3 @@ src_install() {
         rm -rf "${IMAGE}"/usr/share/doc/${PNV}/{protocol,user} || die "Removing directories failed"
     fi
 }
-
