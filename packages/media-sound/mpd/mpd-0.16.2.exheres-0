@@ -69,6 +69,7 @@ DEPENDENCIES="
         media-sound/mpc [[ description = [ Provides command line client ] ]]
         media-sound/mpdcron [[ description = [ Executes scripts based on mpd's idle events ] ]]
         media-sound/ncmpc [[ description = [ Provides ncurses based command line client ] ]]
+        media-sound/ncmpcpp [[ description = [ Provides an improved ncurses-based client ] ]]
         media-sound/qmpdclient [[ description = [ Provides simple QT client ] ]]
         media-sound/sonata [[ description = [ Provides an elegant GTK-based client ] ]]
 "
