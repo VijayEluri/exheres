@@ -32,6 +32,8 @@ src_prepare() {
         -e "/^CFLAGS/s:= .*$:= ${CFLAGS}:" \
         -e "/^LDFLAGS/s:= .*:= ${LDFLAGS}:" \
         -i src/scripts/*.mak*
+
+    edo cp lib/libpng/pngpriv.h src/
 }
 
 src_configure() {
