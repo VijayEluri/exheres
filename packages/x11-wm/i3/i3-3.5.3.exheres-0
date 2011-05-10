@@ -1,9 +1,9 @@
 # Copyright (c) 2010 Russell Harmon <russ@eatnumber1.com>
-# Updated 2011-01-26 by Tom Kirchner for bf2
+# Updated 2011-05-09 by Tom Kirchner for bf3 / yajl2
 # Based on work by Alexander Færøy <ahf@exherbo.org>
 # Distributed under the terms of the GNU General Public License v2
 
-MY_PNV="${PN}-3.e-bf2"
+MY_PNV="${PN}-3.e-bf3"
 
 SUMMARY="An improved dynamic tiling window manager"
 HOMEPAGE="http://i3.zekjur.net/"
@@ -20,7 +20,7 @@ DEPENDENCIES="
         x11-libs/libxcb[>=1.1.93]
         x11-libs/libX11
         dev-libs/libev
-        dev-libs/yajl:1
+        dev-libs/yajl:2
     build:
         app-doc/asciidoc[>=8.3.0]
         x11-proto/xcb-proto[>=1.3]
