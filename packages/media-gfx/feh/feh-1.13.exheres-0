@@ -1,0 +1,39 @@
+# Copyright 2008 Richard Brown
+# Copyright 2011 Ingmar Vanhassel
+# Copyright 2011 Maxime Coste
+# Distributed under the terms of the GNU General Public License v2
+
+SUMMARY="An image viewer at heart, though it does other cool stuff"
+HOMEPAGE="http://derf.homelinux.org/projects/feh/"
+DOWNLOADS="${HOMEPAGE}/${PNV}.tar.bz2"
+
+LICENCES="MIT"
+SLOT="0"
+PLATFORMS="~amd64 ~ppc64 ~x86"
+MYOPTIONS="curl xinerama"
+
+DEPENDENCIES="
+    build+run:
+        media-libs/giblib
+        media-libs/imlib2
+        media-libs/libpng
+        x11-libs/libX11
+        x11-libs/libXt
+        xinerama? ( x11-libs/libXinerama )
+        curl? ( net-misc/curl [[ description = [ Add http/ftp support ] ]] )
+"
+
+# Tests require a few perl modules we've not packaged, like Test::Command and X11::GUITest
+RESTRICT="test"
+
+DEFAULT_SRC_INSTALL_PARAMS=( PREFIX=/usr )
+
+src_prepare() {
+    edo sed -re "/(doc_dir|example_dir)/s:${PN}:${PNVR}:" -i config.mk
+}
+
+src_compile() {
+    emake PREFIX=/usr \
+          xinerama=$(if option xinerama; then echo 1; else echo 0; fi) \
+          curl=$(if option curl; then echo 1; else echo 0; fi)
+}
