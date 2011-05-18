@@ -67,8 +67,6 @@ DEPENDENCIES="
 
 RESTRICT="strip"
 
-BUGS_TO="jan@codejunky.org"
-
 WORK="${WORKBASE}"/jdk$(ever replace 3 _)
 
 src_unpack() {
