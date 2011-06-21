@@ -1,0 +1,98 @@
+# Copyright 2010 A Frederick Christensen <fauxmight@nosocomia.com>
+# Distributed under the terms of the GNU General Public License v2
+
+require cmake
+
+SUMMARY="Robust Doom engine sourceport"
+DESCRIPTION="Source port based on sources of Doom, Heretic, Hexen and a little bit from Quake."
+
+HOMEPAGE="http://vavoom-engine.com"
+DOWNLOADS="mirror://sourceforge/${PN}/${PNV}.tar.bz2"
+
+LICENCES="GPL-2"
+SLOT="0"
+PLATFORMS="~x86 ~amd64"
+
+# Vavoom *can* use allegro in place of SDL, but requires a VERY old (2007)
+# version of Allegro and the separate AllegroGL library. When/if this changes,
+# allegro will be put back in MYOPTIONS, and accounted for throughout the exheres.
+
+MYOPTIONS="
+    sdl
+    vorbis
+    opengl [[ requires = sdl ]]
+    openal
+    mp3 [[ description = [ mp3 playback via libmad ] ]]
+    flac
+    launcher [[ description = [ WxWidgets-based gui launcher ] ]]
+    dedicated [[ description = [ Build dedicated server binary ] ]]
+    client [[ description = [ Build client binary ] ]]
+"
+
+DEPENDENCIES="
+    sdl? (
+        media-libs/SDL
+        media-libs/SDL_mixer
+    )
+    opengl? (
+        x11-dri/mesa
+    )
+    openal? ( media-libs/openal )
+    vorbis? ( media-libs/libvorbis )
+    mp3? ( media-libs/libmad )
+    flac? ( media-libs/flac )
+    launcher? ( x11-libs/wxGTK )
+    build+run:
+        sys-libs/zlib
+        media-libs/libpng
+        media-libs/jpeg
+"
+
+BUGS_TO="fauxmight@nosocomia.com"
+
+REMOTE_IDS="freshmeat:vavoom sourceforge:vavoom"
+UPSTREAM_CHANGELOG="http://vavoom-engine.com/changelog.php"
+
+#Vavoom fails to compile with jobs>1
+CMAKE_SRC_COMPILE_PARAMS=( -j1 )
+
+#TODO: When updating this exheres, add changes{4,5,...} as needed
+DEFAULT_SRC_INSTALL_EXTRA_DOCS=( 
+    docs/changes3.log
+    docs/changes2.log
+    docs/changes1.log
+    docs/changes.log
+    docs/vavoom.txt
+    docs/vcc.log
+)
+
+# Source has a fixunix.sh script that corrects for unix-style
+# line endings. I (fauxmight@nosocomia.com) haven't found this
+# to be necessary. Drop me a line if you find a condition in
+# which this needs to be done.
+
+cmake_src_configure() {
+    ecmake \
+        -DWITH_MIKMOD:BOOL=FALSE \
+        -DENABLE_MASTER:BOOL=FALSE \
+        -DENABLE_ASM:BOOL=TRUE \
+        -DENABLE_WRAPPERS:BOOL=TRUE \
+        -DENABLE_ZONE_DEBUG:BOOL=FALSE \
+        -DWITH_ALLEGRO:BOOL=FALSE \
+        $(cmake_enable launcher LAUNCHER) \
+        $(cmake_enable client CLIENT) \
+        $(cmake_enable dedicated SERVER) \
+        $(cmake_with flac FLAC) \
+        $(cmake_with mp3 LIBMAD ) \
+        $(cmake_with openal OPENAL) \
+        $(cmake_with opengl OPENGL) \
+        $(cmake_with sdl SDL) \
+        $(cmake_with vorbis VORBIS)
+}
+
+pkg_postinst() {
+    elog "Vavoom requires the .wad file(s) from the original game(s) you will play."
+    elog "For MD2 models and high-resolution textures (not *required* to use vavoom),"
+    elog "go to http://vavoom-engine.com."
+}
+
