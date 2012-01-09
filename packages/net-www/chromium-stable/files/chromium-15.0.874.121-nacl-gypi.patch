@@ -1,0 +1,29 @@
+Source: https://code.google.com/p/chromium/issues/detail?id=94518
+Upstream: yes
+Reason: Fix compilation
+--- chromium-15.0.874.121/chrome/nacl.gypi.orig 2011-11-15 03:02:45.000000000 +0100
++++ chromium-15.0.874.121/chrome/nacl.gypi   2011-11-21 10:21:14.160498580 +0100
+@@ -53,6 +53,8 @@
+       }],
+     ],
+   },
++  'conditions': [
++    ['disable_nacl!=1', {
+   'targets': [
+     {
+       'target_name': 'nacl',
+@@ -342,4 +344,14 @@
+       ],
+     }],
+   ],
++  }, {  # else (disable_nacl==1)
++    'targets': [
++      {
++        'target_name': 'nacl',
++        'type': 'none',
++        'sources': [],
++      },
++    ],
++  }],
++  ],
+ }

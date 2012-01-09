@@ -1,0 +1,21 @@
+# Copyright 2009-2011 Elias Pipping <pipping@exherbo.org>
+# Copyright 2009 Heiko Przybyl <zuxez@cs.tu-berlin.de>
+# Distributed under the terms of the GNU General Public License v2
+
+require chromium
+
+DESCRIPTION+="
+Chromium has three release channels: Stable, Beta, and Dev. This package corresponds to the Stable
+channel.
+"
+
+PLATFORMS="~amd64 ~x86"
+
+DEFAULT_SRC_PREPARE_PATCHES=( "${FILES}"/${MY_PNV}-nacl-gypi.patch )
+
+DEPENDENCIES+="
+    build+run:
+        !net-www/chromium-beta
+        !net-www/chromium-dev
+"
+

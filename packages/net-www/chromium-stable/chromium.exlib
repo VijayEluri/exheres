@@ -1,0 +1,278 @@
+# Copyright 2009, 2010 Elias Pipping <pipping@exherbo.org>
+# Copyright 2009 Heiko Przybyl <zuxez@cs.tu-berlin.de>
+# Distributed under the terms of the GNU General Public License v2
+
+MY_PN=chromium
+MY_PNV=${MY_PN}-${PV}
+
+require freedesktop-desktop freedesktop-mime python [ has_lib=false ] toolchain-funcs flag-o-matic
+
+export_exlib_phases pkg_pretend pkg_setup src_prepare src_configure src_test src_install
+
+SUMMARY="The open-source project behind Google Chrome"
+DESCRIPTION="Browser based on WebKit and Google's V8 JavaScript engine."
+HOMEPAGE="http://code.google.com/chromium/"
+DOWNLOADS="http://commondatastorage.googleapis.com/chromium-browser-official/${MY_PNV}.tar.bz2"
+
+# See http://code.google.com/chromium/terms.html (except for lzma, their page is outdated)
+LICENCES="
+    BSD-3         [[ note = [ chromium itself ] ]]
+    Apache-2.0    [[ note = [ skia ] ]]
+    BSD-2         [[ note = [ bsdiff, bspatch ] ]]
+    BSD-3         [[ note = [ dtoa, jscre, modp_b64, v8, webkit ] ]]
+    GPL-2         [[ note = [ hunspell, 'Mozilla interface to Java Plugin APIs', npapi, nspr, nss ] ]]
+    LGPL-2        [[ note = [ webkit ] ]]
+    LGPL-2.1      [[ note = [ ffmpeg, hunspell, 'Mozilla interface to Java Plugin APIs', npapi, nspr,
+                              nss, webkit ] ]]
+    MPL-1.1       [[ note = [ hunspell, 'Mozilla interface to Java Plugin APIs', npapi, nspr, nss ] ]]
+    MIT           [[ note = [ harfbuzz ] ]]
+    public-domain [[ note = [ lzma_sdk, sqlite ] ]]
+"
+
+SLOT="0"
+MYOPTIONS="
+    cups
+    gconf
+    keyring [[ description = [ Store passwords using GNOME Keyring ] ]]
+    platform:
+        amd64
+        x86
+    amd64_cpu_features:
+        sse2
+    x86_cpu_features:
+        sse2
+"
+
+# http://crbug.com/62803 tracks the addition of a use_openssl option. Once that bug is closed,
+# use_openssl=1 can be passed; dev-libs/{nss,nspr} will no longer be needed. Note that that flag
+# currently does not use system openssl but a bundled version from third_party/openssl!
+
+DEPENDENCIES="
+    build:
+        dev-lang/python:*[>=2.5]
+        dev-lang/yasm
+        dev-perl/Switch
+        dev-util/gperf[>=3.0.4]
+    build+run:
+        dev-libs/atk
+        dev-libs/dbus-glib[>=0.84]
+        dev-libs/expat
+        dev-libs/glib:2[>=2.26] [[ note = [ for gsettings ] ]]
+        dev-libs/libevent[>=1.4.13]
+        dev-libs/libxml2[>=2.6.32]
+        dev-libs/libxslt[>=1.1.26]
+        dev-libs/nspr[>=4.0]
+        dev-libs/nss[>=3.12.3] [[ note = [ see base/nss_util.cc for the version requirement ] ]]
+        media-libs/flac
+        media-libs/fontconfig
+        media-libs/freetype
+        media-libs/jpeg[>=6b]
+        media-libs/libpng[>=1.2.37]
+        media-libs/speex
+        sys-apps/dbus
+        sys-sound/alsa-lib
+        x11-libs/cairo[X]
+        x11-libs/gdk-pixbuf:2.0
+        x11-libs/gtk+:2[>=2.16]
+        x11-libs/libX11
+        x11-libs/libXScrnSaver
+        x11-libs/libXext
+        x11-libs/libXi
+        x11-libs/libXrender
+        x11-libs/libXtst
+        x11-libs/pango[X]
+        cups? ( dev-libs/libgcrypt
+                net-print/cups )
+        gconf? ( gnome-platform/GConf:2 )
+        keyring? ( gnome-desktop/libgnome-keyring:1 )
+    suggestion:
+        fonts/corefonts [[ description = [ Needed to display some websites ] ]]
+        gnome-desktop/gnome-icon-theme [[ description = [ For the downloads tab ] ]]
+        x11-apps/xdg-utils [[ description = [ Use application launchers for downloaded files (only for Gnome/KDE/Xfce) ] ]]
+"
+
+WORK=${WORKBASE}/${MY_PNV}
+
+DEFAULT_SRC_COMPILE_PARAMS=( chrome )
+
+cxx_is_gxx() {
+    [[ ${CXX} == *g++* ]] && [[ ${CXX} != *clang* ]]
+}
+
+chromium_pkg_pretend() {
+    if cxx_is_gxx; then
+        local gxx_version=$(gxx-major-version).$(gxx-minor-version)
+        if ! ever at_least 4.2 ${gxx_version}; then
+            # http://code.google.com/p/chromium/wiki/LinuxBuildInstructionsPrerequisites#Software_Requirements
+            die "Chromium requires at least version 4.2 of g++, selected version is ${gxx_version}"
+        fi
+    fi
+}
+
+chromium_pkg_setup() {
+    export BUILDTYPE=Release
+    export V=1
+
+    exdirectory --allow /opt
+}
+
+chromium_src_prepare() {
+    default
+    edo sed \
+        -e '/-O>(debug_optimize)/d' \
+        -e '/-O>(release_optimize)/d' \
+        -i build/common.gypi
+}
+
+# See http://code.google.com/p/chromium/wiki/LinuxBuildInstructions
+chromium_src_configure() {
+    local myconf=(
+        # Requires pulseaudio
+        enable_webrtc=0
+
+        proprietary_codecs=1
+
+        # No reason to force it
+        disable_sse2=$(
+            (option amd64_cpu_features:sse2 || option x86_cpu_features:sse2) && echo 0 || echo 1)
+
+        # script to fetch the sources doesn't work (16.0.891.0)
+        disable_nacl=1
+
+        no_strict_aliasing=1
+
+        use_cups=$(option cups && echo 1 || echo 0)
+
+        use_gconf=$(option gconf && echo 1 || echo 0)
+        use_gnome_keyring=$(option keyring && echo 1 || echo 0)
+
+        # hard disable kerberos support, make it optional if somebody needs it (requires heimdal)
+        $(ever at_least 15.0.874.15 && echo 'use_kerberos=0')
+
+        use_system_bzip2=1
+        use_system_ffmpeg=0
+        use_system_flac=1
+        # Building with system icu-4.8 is broken (last check: 15.0.854.0)
+        use_system_icu=0
+        use_system_libevent=1
+        use_system_libjpeg=1
+        use_system_libpng=1
+        use_system_libxml=1 # there is no separate option for system-libxslt
+        use_system_speex=1
+        # Building with system sqlite is broken (last check: 15.0.854.0); see http://crbug.com/22208
+        use_system_sqlite=0
+        use_system_xdg_utils=1
+        use_system_yasm=1
+        use_system_zlib=1
+
+        werror=
+
+        python_ver=$(python_get_abi)
+
+        ${BUILDTYPE,}_extra_cflags="${CFLAGS}"
+
+        $(option platform:amd64 && echo target_arch=x64)
+        $(option platform:x86 && echo target_arch=ia32)
+
+        # gcc_version is actually the version of g++,
+        # similarly changes to cflags affect C and C++ code
+        $(cxx_is_gxx || echo gcc_version=unknown)
+    )
+
+    # Pass --depth because of this:
+    #   Exception: Could not automatically locate src directory.
+    #   This is a temporary Chromium feature that will be removed.  Use --depth as a workaround.
+    edo env GYP_GENERATORS=make GYP_DEFINES="${myconf[*]}" build/gyp_chromium --depth "${WORK}"
+}
+
+chromium_src_test() {
+    local disabled_app_tests=(
+        L10nUtilTest.LocaleDisplayName                          # FIXME (icu 4.6 problem?)
+        # Needs a UTF-8 Locale
+        L10nUtilTest.WrapPathWithLTRFormatting
+        # Root required
+        TextEliderTest.*
+        FontTest.AvgWidths
+        ClipboardTest.*
+    )
+    local disabled_base_tests=(
+        ConditionVariableTest.LargeFastTaskTest                 # no sandboxing (hangs)
+        FilePathTest.FromUTF8Unsafe_And_AsUTF8Unsafe            # Needs a utf8 locale
+        ICUStringConversionsTest.ConvertBetweenCodepageAndUTF16 # FIXME
+        ICUStringConversionsTest.ConvertBetweenCodepageAndWide  # FIXME
+        LoggingTest.CheckStreamsAreLazy                         # no sandboxing
+        RTLTest.WrapPathWithLTRFormatting                       # FIXME
+        SysInfoTest.DisplayCount                                # needs root, no sandboxing
+        SysInfoTest.GetPrimaryDisplayDimensions                 # needs root, no sandboxing
+    )
+    local disabled_media_tests=(
+        # Root required
+        'Audio*ControllerTest.*'
+        'AudioInputTest.*'
+    )
+    local disabled_ui_tests=(
+        FontTest.AvgWidths                                      # needs root, no sandboxing
+        FontTest.AvgCharWidth                                   # needs root, no sandboxing
+        'ClipboardTest.*'                                       # needs root, no sandboxing
+        'ScreenTest.*'                                          # needs root, no sandboxing
+        'TextEliderTest.*'                                      # needs root, no sandboxing
+        # needs access to the X server
+        GtkExpandedContainerTest.Expand
+        GtkExpandedContainerTest.HasWindow
+        GtkExpandedContainerTest.ChildSizeRequest
+        GtkExpandedContainerTest.ChildPosition
+    )
+    local t suites=( base cacheinvalidation crypto googleurl gpu media printing ui ) HOME="${TEMP}"
+    # Since it takes `make` ages to figure out what to build, only run it once.
+    emake $(for t in ${suites[@]}; do echo ${t}_unittests; done)
+    for t in ${suites[@]}; do
+        tv=disabled_${t}_tests[*]
+        edo ./out/${BUILDTYPE}/${t}_unittests --gtest_filter=$(IFS=:; echo "-${!tv}")
+    done
+}
+
+chromium_src_install() {
+    # Install into /opt
+    local dest=/opt/chromium
+    edo cd out/${BUILDTYPE}
+
+    exeinto ${dest}
+    doexe chrome
+
+    insinto ${dest}
+    doins -r *.pak locales resources
+
+    dosym /opt/netscape/plugins ${dest}
+
+    doins libffmpegsumo.so
+
+    doman chrome.1
+
+    dodir /usr/bin
+    dosym ${dest}/chrome /usr/bin/
+
+    for size in 16 22 24 26 32 48 64 128 256 ; do
+        insinto /usr/share/icons/hicolor/${size}x${size}/apps
+        newins "${WORK}"/chrome/app/theme/chromium/product_logo_${size}.png chromium.png
+    done
+
+    insinto /usr/share/applications/
+    hereins chrome.desktop <<EOF
+[Desktop Entry]
+Version=1.0
+Name=${PN^}
+GenericName=Web Browser
+Exec=chrome %U
+Terminal=false
+Icon=chromium
+Type=Application
+Categories=Network;WebBrowser;
+MimeType=text/html;text/xml;application/xhtml_xml;x-scheme-handler/http;x-scheme-handler/https;
+EOF
+
+    insinto /etc/revdep-rebuild
+    hereins ${PN} <<EOF
+SEARCH_DIRS=${dest}
+EOF
+}
+
